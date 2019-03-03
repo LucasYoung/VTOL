@@ -40,10 +40,7 @@ def xbee_callback(message):
     try:
         msg_type = msg["type"]
 
-        if msg_type == "start":
-            acknowledge(address, msg_type)
-
-        elif msg_type == "addMission":
+        if msg_type == "addMission":
             area = msg["searchArea"]
             search_area = SearchArea(area["center"], area["rad1"], area["rad2"])
             autonomy.start_mission = True
@@ -60,6 +57,10 @@ def xbee_callback(message):
         elif msg_type == "stop":
             autonomy.stop_mission = True
             acknowledge(address, msg_type)
+
+        elif msg_type == "acknowledge":
+            # Do nothing
+            pass
 
         else:
             bad_msg(address, "Unknown message type: \'" + msg_type + "\'")
@@ -156,7 +157,7 @@ def quick_scan_adds_mission(vehicle, lla_waypoint_list):
 
 # Main autonomous flight thread
 # :param configs: dict from configs file
-def quick_scan_autonomy(configs, autonomyToCV):
+def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timestamp):
     comm_sim = None
 
     # If comms is simulated, start comm simulation thread
@@ -188,7 +189,8 @@ def quick_scan_autonomy(configs, autonomyToCV):
     vehicle = connect(connection_string, wait_ready=True)
 
     # Starts the update thread
-    update = Thread(target=update_thread, args=(vehicle, configs["vehicle_type"], configs["mission_control_MAC"],))
+    update = Thread(target=update_thread, args=(vehicle, configs["mission_control_MAC"],
+                    gcs_timestamp, connection_timestamp))
     update.start()
 
     # Send mission to vehicle
@@ -223,7 +225,7 @@ def quick_scan_autonomy(configs, autonomyToCV):
     # Switch to detailed search if role switching is enabled
     if configs["quick_scan_specific"]["role_switching"]:
         autonomy.mission_completed = True
-        update.join()
+        autonomy.updater.join()
         detailed_search(vehicle)
     else:
         land(vehicle)

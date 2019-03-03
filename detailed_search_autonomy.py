@@ -21,11 +21,7 @@ def xbee_callback(message):
     try:
         msg_type = msg["type"]
 
-        if msg_type == "start":
-            autonomy.start_mission = True
-            acknowledge(address, msg_type)
-
-        elif msg_type == "addMission":
+        if msg_type == "addMission":
             msg_lat = msg['missionInfo']['lat']
             msg_lon = msg['missionInfo']['lon']
 
@@ -45,6 +41,10 @@ def xbee_callback(message):
             autonomy.stop_mission = True
             acknowledge(address, msg_type)
 
+        elif msg_type == "acknowledge":
+            # Do nothing
+            pass
+
         else:
             bad_msg(address, "Unknown message type: \'" + msg_type + "\'")
 
@@ -58,7 +58,7 @@ def orbit_poi(vehicle, poi, configs):
     pass
 
 
-def detailed_search_autonomy(configs, autonomyToCV, vehicle=None):
+def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timestamp, vehicle=None):
     print("\n######################## STARTING DETAILED SEARCH ########################")
     global POI_queue
     comm_sim = None
@@ -73,11 +73,7 @@ def detailed_search_autonomy(configs, autonomyToCV, vehicle=None):
         autonomy.xbee = setup_xbee()
         autonomy.xbee.add_data_received_callback(xbee_callback)
 
-    # Takeoff when the mission is started
-    while not autonomy.start_mission:
-        pass
-
-    # If detailed search was not role-switched from quick scan, connect to new vehicle
+    # If detailed search was not role-switched from quick scan, connect to new vehicle and takeoff
     if not vehicle:
         # Start SITL if vehicle is being simulated
         if (configs["vehicle_simulated"]):
@@ -90,13 +86,16 @@ def detailed_search_autonomy(configs, autonomyToCV, vehicle=None):
         # Connect to vehicle
         vehicle = connect(connection_string, wait_ready=True)
 
-    # Starts update thread
-    update = Thread(target=update_thread, args=(vehicle, configs["vehicle_type"], configs["mission_control_MAC"],))
-    update.start()
+        # Starts the update thread
+        update = Thread(target=update_thread, args=(vehicle, configs, configs["mission_control_MAC"],
+                        gcs_timestamp, connection_timestamp))
+        update.start()
 
-    # Only take off if this wasn't running quick scan previously via role-switching
-    if not configs["quick_scan_specific"]["role_switching"]:
         takeoff(vehicle, configs["altitude"])
+    else:
+        # Starts the update thread
+        update = Thread(target=update_thread, args=(vehicle, configs, configs["mission_control_MAC"]))
+        update.start()
 
     vehicle.mode = VehicleMode("GUIDED")
     
@@ -107,6 +106,7 @@ def detailed_search_autonomy(configs, autonomyToCV, vehicle=None):
     while not autonomy.stop_mission:
         if not POI_queue.empty() and not autonomy.pause_mission:
             poi = POI_queue.get()
+            vehicle.simple_goto(poi)
             # TODO start CV scanning
             orbit_poi(vehicle, poi, configs)
             # TODO stop CV scanning

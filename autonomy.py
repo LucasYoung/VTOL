@@ -178,17 +178,23 @@ def include_heading():
 
 # :param vehicle: vehicle object that represents drone
 # :param vehicle_type: vehicle type from configs file
-def update_thread(vehicle, vehicle_type, address):
+def update_thread(vehicle, configs, address, gcs_timestamp, connection_timestamp):
     print("Starting update thread\n")
     while not mission_completed:
         location = vehicle.location.global_frame
         battery_level = vehicle.battery.level / 100.0  # To comply with format of 0 - 1
         update_message = {
             "type": "update",
-            "vehicleType": vehicle_type,
+            "time": round(time.clock() - connection_timestamp) + gcs_timestamp,
+            "sid": configs["vehicle_id"],
+            "tid": 0, # the ID of the GCS is 0
+            "id": 0, # TODO make the IDs unique for acknowledgements
+
+            "vehicleType": "VTOL",
             "lat": location.lat,
             "lon": location.lon,
             "status": status,
+            # TODO heading
             "battery": battery_level
         }
 
