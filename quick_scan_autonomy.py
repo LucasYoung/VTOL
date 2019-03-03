@@ -228,7 +228,7 @@ def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timesta
     # Switch to detailed search if role switching is enabled
     if configs["quick_scan_specific"]["role_switching"]:
         autonomy.mission_completed = True
-        autonomy.updater.join()
+        update.join()
         detailed_search(vehicle)
     else:
         land(vehicle)
