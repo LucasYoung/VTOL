@@ -183,7 +183,10 @@ def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timesta
         sitl = dronekit_sitl.start_default(lat=1, lon=1)
         connection_string = sitl.connection_string()
     else:
-        connection_string = "/dev/serial0"
+        if (configs["3dr_solo"]):
+            connection_string = "udpin:0.0.0.0:14550"
+        else:
+            connection_string = "/dev/serial0"
 
     # Connect to vehicle
     vehicle = connect(connection_string, wait_ready=True)
