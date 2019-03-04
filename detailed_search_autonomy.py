@@ -130,9 +130,10 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
     change_status("ready")
     autonomy.mission_completed = True
 
+    update.join()
+
     # Wait for comm simulation thread to end
     if comm_sim:
         comm_sim.join()
-
-    update.join()
-    autonomy.xbee.close()
+    else:
+        autonomy.xbee.close()
