@@ -62,6 +62,10 @@ def main():
     connection_message = {
         "type": "connect",
         "time": 0, # This field is currently not used
+        "sid": configs['vehicle_id'],
+        "tid": 0, # The ID of GCS
+        "id": 0, # The ID of this message
+
         "jobsAvailable": ["quickScan", "detailedSearch", "guide"]
     }
 

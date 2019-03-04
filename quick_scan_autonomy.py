@@ -44,22 +44,22 @@ def xbee_callback(message):
             area = msg["searchArea"]
             search_area = SearchArea(area["center"], area["rad1"], area["rad2"])
             autonomy.start_mission = True
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "pause":
             autonomy.pause_mission = True
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "resume":
             autonomy.pause_mission = False
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "stop":
             autonomy.stop_mission = True
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "acknowledge":
-            # Do nothing
+            # TODO check the ID
             pass
 
         else:
@@ -158,16 +158,19 @@ def quick_scan_adds_mission(vehicle, lla_waypoint_list):
 # Main autonomous flight thread
 # :param configs: dict from configs file
 def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timestamp):
-    comm_sim = None
+    print("\n######################## STARTING QUICK SCAN AUTONOMY ########################")
+    autonomy.configs = configs
 
     # If comms is simulated, start comm simulation thread
     if configs["quick_scan_specific"]["comms_simulated"]["toggled_on"]:
         comm_sim = Thread(target=comm_simulation, args=(configs["quick_scan_specific"]["comms_simulated"]["comm_sim_file"], xbee_callback,))
         comm_sim.start()
-
     # Otherwise, set up XBee device and add callback
     else:
+        comm_sim = None
         autonomy.xbee = setup_xbee()
+        autonomy.gcs_timestamp = gcs_timestamp
+        autonomy.connection_timestamp = connection_timestamp
         autonomy.xbee.add_data_received_callback(xbee_callback)
 
     # Generate waypoints after start_mission = True
@@ -192,8 +195,7 @@ def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timesta
     vehicle = connect(connection_string, wait_ready=True)
 
     # Starts the update thread
-    update = Thread(target=update_thread, args=(vehicle, configs["mission_control_MAC"],
-                    gcs_timestamp, connection_timestamp))
+    update = Thread(target=update_thread, args=(vehicle, configs["mission_control_MAC"]))
     update.start()
 
     # Send mission to vehicle

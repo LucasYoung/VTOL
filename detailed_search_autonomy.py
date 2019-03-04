@@ -27,22 +27,22 @@ def xbee_callback(message):
 
             # convert mission coordinates to dronekit object, and add to POI queue
             POI_queue.put(LocationGlobalRelative(msg_lat, msg_lon, None))
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "pause":
             autonomy.pause_mission = True
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "resume":
             autonomy.pause_mission = False
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "stop":
             autonomy.stop_mission = True
-            acknowledge(address, msg_type)
+            acknowledge(address, msg["id"])
 
         elif msg_type == "acknowledge":
-            # Do nothing
+            # TODO check the ID
             pass
 
         else:
@@ -59,18 +59,19 @@ def orbit_poi(vehicle, poi, configs):
 
 
 def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timestamp, vehicle=None):
-    print("\n######################## STARTING DETAILED SEARCH ########################")
-    global POI_queue
-    comm_sim = None
+    print("\n######################## STARTING DETAILED SEARCH AUTONOMY ########################")
+    autonomy.configs = configs
 
     # If comms is simulated, start comm simulation thread
     if configs["detailed_search_specific"]["comms_simulated"]["toggled_on"]:
         comm_sim = Thread(target=comm_simulation, args=(configs["detailed_search_specific"]["comms_simulated"]["comm_sim_file"], xbee_callback,))
         comm_sim.start()
-
     # Otherwise, set up XBee device and add callback
     else:
+        comm_sim = None
         autonomy.xbee = setup_xbee()
+        autonomy.gcs_timestamp = gcs_timestamp
+        autonomy.connection_timestamp = connection_timestamp
         autonomy.xbee.add_data_received_callback(xbee_callback)
 
     # If detailed search was not role-switched from quick scan, connect to new vehicle and takeoff
@@ -90,8 +91,7 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
         vehicle = connect(connection_string, wait_ready=True)
 
         # Starts the update thread
-        update = Thread(target=update_thread, args=(vehicle, configs, configs["mission_control_MAC"],
-                        gcs_timestamp, connection_timestamp))
+        update = Thread(target=update_thread, args=(vehicle, configs, configs["mission_control_MAC"]))
         update.start()
 
         takeoff(vehicle, configs["altitude"])

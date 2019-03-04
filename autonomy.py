@@ -11,6 +11,12 @@ pause_mission = False  # vehicle will hover
 stop_mission = False  # return to start and land
 xbee = None  # XBee radio object
 
+# Timestamps to keep track of the time field in messages to GCS
+gcs_timestamp = 0
+connection_timestamp = 0
+# The global config dictionary
+configs = None
+
 # Global status, updated by various functions
 status = "ready"
 heading = None
@@ -113,10 +119,15 @@ def land(vehicle):
 
 # Sends message received acknowledgement to GCS
 # :param address: address of GCS
-def acknowledge(address, received_type):
+def acknowledge(address, ackid):
     ack = {
         "type": "ack",
-        "received": received_type
+        "time": round(time.clock() - connection_timestamp) + gcs_timestamp,
+        "sid": configs['vehicle_id'],
+        "tid": 0, # The ID of GCS
+        "id": 0, # TODO
+
+        "ackid": ackid
     }
     # xbee is None if comms is simulated
     if xbee:
@@ -132,6 +143,11 @@ def acknowledge(address, received_type):
 def bad_msg(address, problem):
     msg = {
         "type": "badMessage",
+        "time": round(time.clock() - connection_timestamp) + gcs_timestamp,
+        "sid": configs['vehicle_id'],
+        "tid": 0, # The ID of GCS
+        "id": 0, # TODO
+
         "error": problem
     }
     # xbee is None if comms is simulated
@@ -178,7 +194,7 @@ def include_heading():
 
 # :param vehicle: vehicle object that represents drone
 # :param vehicle_type: vehicle type from configs file
-def update_thread(vehicle, configs, address, gcs_timestamp, connection_timestamp):
+def update_thread(vehicle, address):
     print("Starting update thread\n")
     while not mission_completed:
         location = vehicle.location.global_frame
