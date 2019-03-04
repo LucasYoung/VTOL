@@ -244,3 +244,4 @@ def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timesta
     # Wait for comm simulation thread to end
     if comm_sim:
         comm_sim.join()
+    autonomy.xbee.close()

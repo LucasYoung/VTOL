@@ -135,3 +135,4 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
         comm_sim.join()
 
     update.join()
+    autonomy.xbee.close()

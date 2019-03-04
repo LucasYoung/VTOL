@@ -32,6 +32,7 @@ def xbee_callback(message):
         elif msg_type == "start":
             # detach this callback so that the corresponding role can use its own callback
             xbee.del_data_received_callback(xbee_callback)
+            xbee.close()
 
             job_type = msg['jobType']
             if job_type == "quickScan":
