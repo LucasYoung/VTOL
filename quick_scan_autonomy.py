@@ -179,7 +179,7 @@ def quick_scan_autonomy(configs, autonomyToCV):
     # Start SITL if vehicle is being simulated
     if (configs["vehicle_simulated"]):
         import dronekit_sitl
-        sitl = dronekit_sitl.start_default(lat=1, lon=1)
+        sitl = dronekit_sitl.start_default(lat=35.328423, lon=-120.752505)
         connection_string = sitl.connection_string()
     else:
         connection_string = "/dev/serial0"
