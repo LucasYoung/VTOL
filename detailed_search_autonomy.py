@@ -91,13 +91,13 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
         vehicle = connect(connection_string, wait_ready=True)
 
         # Starts the update thread
-        update = Thread(target=update_thread, args=(vehicle, configs, configs["mission_control_MAC"]))
+        update = Thread(target=update_thread, args=(vehicle, configs["mission_control_MAC"]))
         update.start()
 
         takeoff(vehicle, configs["altitude"])
     else:
         # Starts the update thread
-        update = Thread(target=update_thread, args=(vehicle, configs, configs["mission_control_MAC"]))
+        update = Thread(target=update_thread, args=(vehicle, configs["mission_control_MAC"]))
         update.start()
 
     vehicle.mode = VehicleMode("GUIDED")
