@@ -76,13 +76,6 @@ def orbit_poi(vehicle, poi, configs):
             lat, lon, alt = conversions.ecef2geodetic(a, b, z)
             waypoints.append(LocationGlobalRelative(lat, lon, alt))
 
-    # Add MAV_CMD_NAV_TAKEOFF command. This is ignored if the vehicle is already in the air.
-    # This command is there when vehicle is in AUTO mode, where it takes off through command list
-    # In guided mode, the actual takeoff function is needed, in which case this command is ignored
-    cmds.add(
-        Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0,
-                0, 0, 0, 0, 10))
-
     # Define the MAV_CMD_NAV_WAYPOINT locations and add the commands
     for point in waypoints:
         cmds.add(
@@ -135,8 +128,6 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
         # Starts the update thread
         update = Thread(target=update_thread, args=(vehicle, configs["mission_control_MAC"]))
         update.start()
-
-    vehicle.mode = VehicleMode("AUTO")
     
     # Change vehicle status to running
     change_status("running")
@@ -145,16 +136,24 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
     while not autonomy.stop_mission:
         if not POI_queue.empty() and not autonomy.pause_mission:
             poi = POI_queue.get()
-            print("gets here")
+            poi.alt = configs["altitude"]
+            vehicle.simple_goto(poi)
+
+            print("At POI, now orbiting")
             # TODO start CV scanning
             orbit_poi(vehicle, poi, configs)
-            # prints location
-            if configs["flight_mode"] == "AUTO":
-                while vehicle.commands.next != vehicle.commands.count:
-                    print(vehicle.location.global_frame)
-                    print(vehicle.commands.count)
-                    time.sleep(2)
+            # Change flight mode to AUTO to start auto mission
+            vehicle.mode = VehicleMode("AUTO")
+            # print location while orbiting
+            while vehicle.commands.next != vehicle.commands.count:
+                print(vehicle.location.global_frame)
+                print(vehicle.commands.next)
+                print(vehicle.commands.count)
+                time.sleep(1)
             # TODO stop CV scanning
+
+            # Change flight mode back
+            vehicle.mode = VehicleMode("GUIDED")
         else:
             change_status("waiting")    
 
