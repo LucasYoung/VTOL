@@ -4,6 +4,7 @@ import cv2
 import math
 import numpy as np
 from os import listdir
+import cProfile, pstats, StringIO
 
 def main():
     sitl = dronekit_sitl.start_default(lat=35.328423, lon=-120.752505) # EFR location
@@ -47,15 +48,16 @@ def gps_denied_move(vehicle, location, map_keys, map_descs, map_origin):
 # returns tuple of location (tuple) and orientation
 def gpsToPixels(location, map_origin):
     # TODO Samay Nathani
-    return (1813, 2421)
+    return (906, 1210)
 
 CV_SIMULATION = True
 imgCounter = 0
 orb = cv2.ORB_create(nfeatures=100000, scoreType=cv2.ORB_FAST_SCORE)
 
 def initializeMap():
-    img = cv2.imread("images/Map1.jpg")
-    areaMap = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    areaMap = cv2.imread("images/Map1.jpg")
+    areaMap = cv2.resize(areaMap, (0, 0), fx = 0.5, fy = 0.5)
+    areaMap = cv2.cvtColor(areaMap, cv2.COLOR_BGR2GRAY)
 
     # find the keypoints and descriptors with ORB
     kp, des = orb.detectAndCompute(areaMap, None)
@@ -70,18 +72,28 @@ def calculatePixelLocation(map_keys, map_descs):
         # TODO take picture with raspicam
         pass
     
+    img = cv2.resize(img, (0, 0), fx = 0.5, fy = 0.5)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     keys, descs = orb.detectAndCompute(img, None)
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-    MATCH_COUNT = 10
-    matches = bf.match(descs, map_descs)
-    # Sort the matches by smallest distance
-    # TODO this can be optimized
-    matches = sorted(matches, key = lambda x:x.distance)[:min(len(matches), MATCH_COUNT)]
-    
-    src_pts = np.float32([ keys[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
-    dst_pts = np.float32([ map_keys[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+    FLANN_INDEX_LSH = 6
+    index_params= dict(algorithm = FLANN_INDEX_LSH,
+                   table_number = 6, # 12
+                   key_size = 12,     # 20
+                   multi_probe_level = 1) #2
+    search_params = dict(checks=5)
+    flann = cv2.FlannBasedMatcher(index_params,search_params)
+
+    matches = flann.knnMatch(descs, map_descs, k=2)
+
+    # Lowe's test to filter matches
+    good_matches = []
+    for i,(m,n) in enumerate(matches):
+        if m.distance < 0.7 * n.distance:
+            good_matches.append(m)
+
+    src_pts = np.float32([ keys[m.queryIdx].pt for m in good_matches ]).reshape(-1,1,2)
+    dst_pts = np.float32([ map_keys[m.trainIdx].pt for m in good_matches ]).reshape(-1,1,2)
     
     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
     h,w = img.shape
@@ -98,9 +110,9 @@ def calculatePixelLocation(map_keys, map_descs):
 def cv_simulation():
     global imgCounter
     files = listdir("./simulation_images")
-    path = "./simulation_images/" + files[imgCounter % len(files)]
+    path = "./simulation_images/" + str(imgCounter) + ".png"
     img = cv2.imread(path)
-    imgCounter += 1
+    imgCounter = (imgCounter + 1) % len(files)
     return img
 
 def euclidean_distance(x1, y1, x2, y2):
@@ -140,7 +152,6 @@ def takeoff(vehicle, altitude):
 
     print("Reached target altitude")
 
-
 # Commands vehicle to land
 def land(vehicle):
     print("Returning to launch")
@@ -150,4 +161,12 @@ def land(vehicle):
     vehicle.close()
 
 if __name__ == "__main__":
+    pr = cProfile.Profile()
+    pr.enable()
     main()
+    pr.disable()
+    s = StringIO.StringIO()
+    sortby = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print s.getvalue()
