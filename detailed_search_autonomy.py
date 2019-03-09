@@ -59,10 +59,10 @@ def xbee_callback(message):
 
 def orbit_poi(vehicle, poi, configs):
     waypoints = []  # waypoints in LLA
-    altitude = configs["altitude"]  # given altitude
+    original_altitude = configs["altitude"]  # given altitude
     radius = configs["radius"]  # radius of circle travelled
     orbit_number = configs["orbit_number"]  # how many times we repeat orbit
-    x, y, z = conversions.geodetic2ecef(poi.lat, poi.lon, altitude)  # LLA -> ECEF
+    x, y, z = conversions.geodetic2ecef(poi.lat, poi.lon, original_altitude)  # LLA -> ECEF
     cmds = vehicle.commands
     cmds.clear()
 
@@ -74,7 +74,7 @@ def orbit_poi(vehicle, poi, configs):
             a = (radius * point[0]) + x
             b = (radius * point[1]) + y
             lat, lon, alt = conversions.ecef2geodetic(a, b, z)
-            waypoints.append(LocationGlobalRelative(lat, lon, alt))
+            waypoints.append(LocationGlobalRelative(lat, lon, original_altitude))
 
     # Define the MAV_CMD_NAV_WAYPOINT locations and add the commands
     for point in waypoints:
