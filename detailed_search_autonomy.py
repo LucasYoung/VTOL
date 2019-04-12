@@ -213,9 +213,6 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
             elif (configs["vehicle_type"] == "Quadcopter"):
                 vehicle.mode = VehicleMode("ALT_HOLD")
             change_status("paused")
-        # Otherwise continue
-        else:
-            vehicle.mode = VehicleMode("GUIDED")
 
     land(configs, vehicle)
 

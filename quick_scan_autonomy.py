@@ -227,9 +227,6 @@ def quick_scan_autonomy(configs, autonomyToCV, gcs_timestamp, connection_timesta
         elif autonomy.stop_mission:
             land(configs, vehicle)
             return
-        # Continues path
-        else:
-            vehicle.mode = VehicleMode("AUTO")
 
     # Switch to detailed search if role switching is enabled
     if configs["quick_scan_specific"]["role_switching"]:
