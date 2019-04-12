@@ -83,9 +83,6 @@ def orbit_poi(vehicle, poi, configs):
         cmds.add(
             Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
                     0, waypoint_tolerance, 0, 0, poi.lat, poi.lon, poi_scan_altitude))
-        cmds.add(
-            Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
-                    0, waypoint_tolerance, 0, 0, poi.lat, poi.lon, poi_scan_altitude))
     elif (configs["vehicle_type"] == "Quadcopter"):
         cmds.add(
             Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
@@ -200,18 +197,6 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
             # Change flight mode to AUTO to start auto mission
             vehicle.commands.next = 0
             vehicle.mode = VehicleMode("AUTO")
-
-            '''
-            # Send mission start message if quadcopter
-            if (configs["vehicle_type"] == "Quadcopter"):
-                msg = vehicle.message_factory.command_long_encode(
-                    0, 0,    # target_system, target_component
-                    mavutil.mavlink.MAV_CMD_MISSION_START, #command
-                    0, #confirmation
-                    0, 0, 0, 0, 0, 0, 0)    # param 1 ~ 7 not used
-                # send command to vehicle
-                vehicle.send_mavlink(msg)
-            '''
 
             # print location while orbiting
             while vehicle.commands.next != vehicle.commands.count:
