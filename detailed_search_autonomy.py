@@ -83,6 +83,9 @@ def orbit_poi(vehicle, poi, configs):
         cmds.add(
             Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
                     0, waypoint_tolerance, 0, 0, poi.lat, poi.lon, poi_scan_altitude))
+        cmds.add(
+            Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
+                    0, waypoint_tolerance, 0, 0, poi.lat, poi.lon, poi_scan_altitude))
     elif (configs["vehicle_type"] == "Quadcopter"):
         cmds.add(
             Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
@@ -93,12 +96,18 @@ def orbit_poi(vehicle, poi, configs):
         cmds.add(
             Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_VTOL_TRANSITION, 0, 0,
                     mavutil.mavlink.MAV_VTOL_STATE_MC, 0, 0, 0, 0, 0, 0))
-
-    # Define the MAV_CMD_NAV_WAYPOINT locations and add the commands
-    for point in waypoints:
-        cmds.add(
-            Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
-                    0, 0, 0, 0, point.lat, point.lon, poi_scan_altitude))
+    
+    # Circular waypoints
+    if (configs["vehicle_type"] == "VTOL"):
+        for point in waypoints:
+            cmds.add(
+                Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
+                        waypoint_tolerance, 0, 0, 0, point.lat, point.lon, poi_scan_altitude))
+    elif (configs["vehicle_type"] == "Quadcopter"):
+         for point in waypoints:
+            cmds.add(
+                Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
+                        0, 0, 0, 0, point.lat, point.lon, poi_scan_altitude))       
 
     # Transition to forward flight if applicable
     if (configs["vehicle_type"] == "VTOL"):
@@ -106,11 +115,10 @@ def orbit_poi(vehicle, poi, configs):
             Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_DO_VTOL_TRANSITION, 0, 0,
                     mavutil.mavlink.MAV_VTOL_STATE_MC, 0, 0, 0, 0, 0, 0))
 
-
     # Add dummy endpoint
     cmds.add(
         Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,
-                0, 0, 0, 0, 0, 0, 0))
+                0, 0, 0, 0, poi.lat, poi.lon, poi_scan_altitude))
 
     print("Upload new commands to vehicle")
     cmds.upload()
@@ -180,6 +188,7 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
     
     # Change vehicle status to running
     change_status("running")
+    vehicle.mode = VehicleMode("GUIDED")
 
     # Continuously fly to POIs
     while not autonomy.stop_mission:
@@ -189,13 +198,27 @@ def detailed_search_autonomy(configs, autonomyToCV, gcs_timestamp, connection_ti
 
             orbit_poi(vehicle, poi, configs)
             # Change flight mode to AUTO to start auto mission
+            vehicle.commands.next = 0
             vehicle.mode = VehicleMode("AUTO")
+
+            '''
+            # Send mission start message if quadcopter
+            if (configs["vehicle_type"] == "Quadcopter"):
+                msg = vehicle.message_factory.command_long_encode(
+                    0, 0,    # target_system, target_component
+                    mavutil.mavlink.MAV_CMD_MISSION_START, #command
+                    0, #confirmation
+                    0, 0, 0, 0, 0, 0, 0)    # param 1 ~ 7 not used
+                # send command to vehicle
+                vehicle.send_mavlink(msg)
+            '''
+
             # print location while orbiting
             while vehicle.commands.next != vehicle.commands.count:
                 if vehicle.commands.next > 1:
                     # TODO start CV scanning
                     pass
-                print(vehicle.location.global_frame)
+                print(vehicle.location.global_relative_frame)
                 print(vehicle.commands.next)
                 print(vehicle.commands.count)
                 time.sleep(1)
