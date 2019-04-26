@@ -8,11 +8,12 @@ import cProfile, pstats, StringIO
 from math import cos, sin, radians
 from time import time, sleep
 from pickle import dump, load, HIGHEST_PROTOCOL
+from threading import Thread
 
 # Quick configs
 ALTITUDE = 10
 SOLO = False
-CV_SIMULATION = False
+CV_SIMULATION = True
 LOITER = True
 
 def main():
@@ -27,20 +28,21 @@ def main():
     keys, descs = read_from_file()
     # takeoff currently uses GPS
     takeoff(vehicle, ALTITUDE)
-    vehicle.mode = VehicleMode("LOITER")
+    vehicle.mode = VehicleMode("GUIDED")
 
-    gps_denied_move(vehicle, LocationGlobalRelative(1.005, 1.0, 30), keys, descs, map_origin)
+    camera = init_camera()
+    gps_denied_move(vehicle, camera, LocationGlobalRelative(1.005, 1.0, 30), keys, descs, map_origin)
 
     land(vehicle)
 
 # how many pixels the drone can be off from the target before being in acceptance state
 EPSILON = 100
 
-def gps_denied_move(vehicle, location, map_keys, map_descs, map_origin):
+def gps_denied_move(vehicle, camera, location, map_keys, map_descs, map_origin):
     # convert location to pixels
     target_pixel_location = gpsToPixels(location, map_origin)
 
-    current_pixel_location, current_orientation = calculatePixelLocation(map_keys, map_descs)
+    current_pixel_location, current_orientation = calculatePixelLocation(camera, map_keys, map_descs)
     print(current_pixel_location)
     print(current_orientation)
     while (euclidean_distance(current_pixel_location[0], current_pixel_location[1],
@@ -49,13 +51,17 @@ def gps_denied_move(vehicle, location, map_keys, map_descs, map_origin):
         delta_direction = atan((target_pixel_location[1] - current_pixel_location[1]) /
                                (target_pixel_location[0] - current_pixel_location[0])) * 180 / pi - current_orientation
         print("delta direction: ", str(delta_direction))
+
         vehicle.mode = VehicleMode("GUIDED_NOGPS")
         change_yaw(vehicle, delta_direction)
-        move_forward(vehicle, 5)
+        move_forward(vehicle, 3)
+
         # Wait a time interval for the image to stabilize
-        vehicle.mode = VehicleMode("LOITER")
-        sleep(3)
-        current_pixel_location, current_orientation = calculatePixelLocation(map_keys, map_descs)
+        if LOITER:
+            vehicle.mode = VehicleMode("GUIDED")
+        sleep(1)
+
+        current_pixel_location, current_orientation = calculatePixelLocation(camera, map_keys, map_descs)
         print(current_pixel_location)
         print(current_orientation)
 
@@ -67,11 +73,9 @@ def gpsToPixels(location, map_origin):
 imgCounter = 0
 orb = cv2.ORB_create(nfeatures=1000, scoreType=cv2.ORB_FAST_SCORE)
 
-def calculatePixelLocation(map_keys, map_descs):
-    if (CV_SIMULATION):
-        img = cv_simulation()
-    else:
-        # Take picture using solo
+def calculatePixelLocation(camera, map_keys, map_descs):
+    # Take picture using solo
+    img = take_picture(camera)
     
     img = cv2.resize(img, (0, 0), fx = 0.5, fy = 0.5)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -128,15 +132,15 @@ def init_camera():
         solo_connect_thread = Thread(target=connect_solo_wifi)
         solo_connect_thread.daemon = True
         solo_connect_thread.start()
-        time.sleep(1)
+        sleep(1)
         environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'protocol_whitelist;file,rtp,udp'
         cam = cv2.VideoCapture("./sololink.sdp")
         return cam
 
 def take_picture(camera):
-   if CV_SIMULATION:
-       return cv_simulation()
-   else:
+    if CV_SIMULATION:
+        return cv_simulation()
+    else:
         return camera.read()
 
 def euclidean_distance(x1, y1, x2, y2):
