@@ -33,6 +33,7 @@ def main():
         # Port 5763 must be forwarded on vagrant
         connection_string = "tcp:127.0.0.1:5763"
     vehicle = connect(connection_string)
+    vehicle = None
 
     map_origin = LocationGlobalRelative(35.328403, -120.752401, ALTITUDE)
     target_location = LocationGlobalRelative(35.328219, -120.752315, ALTITUDE)
@@ -176,6 +177,11 @@ def calculatePixelLocation(camera, map_keys, map_descs):
         return None
 
 img_counter = 0
+
+def sorted_alphanumeric(data):
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+    return sorted(data, key=alphanum_key)
 
 def sorted_alphanumeric(data):
     convert = lambda text: int(text) if text.isdigit() else text.lower()
